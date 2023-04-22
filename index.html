@@ -79,12 +79,14 @@
                 }
             }
 
-            .result {
+            .result,
+            .error {
                 opacity: 1;
                 transition: opacity 0.3s;
             }
 
-            .result.hidden {
+            .result.hidden,
+            .error.hidden {
                 opacity: 0;
             }
 
@@ -94,6 +96,11 @@
 
             .tag.positive {
                 color: #FFA500;
+            }
+
+            .error {
+                color: #ff6666;
+                margin-top: -16px;
             }
         </style>
     </head>
@@ -107,6 +114,7 @@
             </button>
         </form>
         <p class="result hidden">这段文字可能是<strong class="tag"></strong>的</p>
+        <p class="error hidden">糟糕！服务器可能出现了一些错误，请稍后再试</p>
         <script>
             function ref(value, renderFn) {
                 const res = {};
@@ -159,16 +167,21 @@
                                 reject(xhr.responseText);
                             }
                         }
-                    }
+                    };
+                    xhr.onerror = (err) => {
+                        reject(err);
+                    };
                     xhr.send();
                 });
             }
             let isLoading = ref(false, renderButton);
+            let isError = ref(false, renderResult);
             let result = ref(null, renderResult);
             function submit(e) {
                 e.preventDefault();
                 if (isLoading.value) return;
                 isLoading.value = true;
+                isError.value = false;
                 result.value = null;
                 const input = document.forms[0].input.value;
                 get('predict/', {
@@ -179,6 +192,7 @@
                 }).catch((err) => {
                     console.error(err);
                     isLoading.value = false;
+                    isError.value = true;
                 });
             }
             document.forms[0].addEventListener('submit', (e) => {
@@ -197,6 +211,8 @@
             function renderResult() {
                 const resultEle = document.querySelector('.result');
                 resultEle.className = `result ${typeof result.value === 'number' ? '' : 'hidden'}`;
+                const error = document.querySelector('.error');
+                error.className = `error ${isError.value ? '' : 'hidden'}`;
                 if (typeof result.value !== 'number') return;
                 const tag = resultEle.querySelector('.tag');
                 tag.innerText = result.value === 0 ? '消极' : '积极';
