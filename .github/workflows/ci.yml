@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: ["master"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      pages: write
+      id-token: write
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1.0.7
+        with:
+          path: './'
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v2
