@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>🤖简易情感分类</title>
+        <style>
+            body {
+                margin: 0;
+                padding: 20px;
+                min-height: 100vh;
+                min-width: 100vw;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+
+            h1 {
+                margin: 0 0 28px;
+            }
+
+            form {
+                width: 100%;
+                max-width: 556px;
+                display: flex;
+                font-size: 16px;
+                line-height: 21px;
+            }
+
+            input {
+                flex: 1;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 20px 0 0 20px;
+                background: #e6f2ff;
+            }
+
+            button {
+                padding: 10px 20px;
+                border: none;
+                border-radius: 0 20px 20px 0;
+                background: #00bfff;
+                color: white;
+                cursor: pointer;
+                font-weight: 500;
+                transition: color, background-color 0.3s;
+            }
+
+            button[disabled] {
+                color: #808080;
+                background-color: #E3E3E3;
+                cursor: not-allowed;
+            }
+
+            .loading {
+                display: block;
+                width: 13px;
+                height: 13px;
+                border: 3px solid #696969;
+                border-top-color: #A0A0A0;
+                border-right-color: #A0A0A0;
+                border-bottom-color: #A0A0A0;
+                border-radius: 100%;
+                animation: circle infinite 0.75s linear;
+            }
+
+            .loading.hidden {
+                display: none;
+            }
+
+            @keyframes circle {
+                0% {
+                    transform: rotate(0);
+                }
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
+
+            .result {
+                opacity: 1;
+                transition: opacity 0.3s;
+            }
+
+            .result.hidden {
+                opacity: 0;
+            }
+
+            .tag.negative {
+                color: #00008B;
+            }
+
+            .tag.positive {
+                color: #FFA500;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🤖简易情感分类</h1>
+        <form>
+            <input name="input" placeholder="请输入要分类的文字" />
+            <button>
+                <span>确定</span>
+                <div class="loading hidden" />
+            </button>
+        </form>
+        <p class="result hidden">这段文字可能是<strong class="tag"></strong>的</p>
+        <script>
+            function ref(value, renderFn) {
+                const res = {};
+                let v = value;
+                Object.defineProperties(res, {
+                    value: {
+                        get() {
+                            return v;
+                        },
+                        set(newVal) {
+                            v = newVal;
+                            if (renderFn) renderFn(newVal);
+                        },
+                    },
+                });
+                return res;
+            }
+
+            const BASE_URL = 'http://8.130.36.41:7001/';
+            function get(url, query) {
+                return new Promise((resolve, reject) => {
+                    let queryString = null;
+                    if (query) {
+                        queryString = Object
+                            .keys(query)
+                            .map((key) => {
+                                if (typeof query[key] === 'object') {
+                                    return `${key}=${JSON.stringify(query[key])}`;
+                                } else {
+                                    return `${key}=${query[key]}`;
+                                }
+                            })
+                            .join('&');
+                    }
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('GET', `${BASE_URL}${url}${queryString ? '?' + queryString : ''}`)
+                    xhr.onload = () => {
+                        if (xhr.status.toString().startsWith('2')) {
+                            try {
+                                const res = JSON.parse(xhr.responseText);
+                                resolve(res);
+                            } catch {
+                                resolve(xhr.responseText);
+                            }
+                        } else {
+                            try {
+                                const res = JSON.parse(xhr.responseText);
+                                reject(res);
+                            } catch {
+                                reject(xhr.responseText);
+                            }
+                        }
+                    }
+                    xhr.send();
+                });
+            }
+            let isLoading = ref(false, renderButton);
+            let result = ref(null, renderResult);
+            function submit(e) {
+                e.preventDefault();
+                if (isLoading.value) return;
+                isLoading.value = true;
+                result.value = null;
+                const input = document.forms[0].input.value;
+                get('predict/', {
+                    data: input,
+                }).then((res) => {
+                    result.value = res.prediction;
+                    isLoading.value = false;
+                }).catch((err) => {
+                    console.error(err);
+                    isLoading.value = false;
+                });
+            }
+            document.forms[0].addEventListener('submit', (e) => {
+                submit(e);
+            });
+
+            function renderButton() {
+                const button = document.querySelector('button');
+                button.disabled = isLoading.value;
+                const span = button.querySelector('span');
+                span.innerText = isLoading.value ? '' : '确定';
+                const loading = button.querySelector('.loading');
+                loading.className = `loading ${isLoading.value ? '' : 'hidden'}`;
+            }
+
+            function renderResult() {
+                const resultEle = document.querySelector('.result');
+                resultEle.className = `result ${typeof result.value === 'number' ? '' : 'hidden'}`;
+                if (typeof result.value !== 'number') return;
+                const tag = resultEle.querySelector('.tag');
+                tag.innerText = result.value === 0 ? '消极' : '积极';
+                tag.className = `tag ${result.value === 0 ? 'negative' : 'positive'}`;
+            }
+        </script>
+    </body>
+</html>
